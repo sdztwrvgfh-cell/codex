@@ -3,6 +3,7 @@ from groq import Groq
 import os
 import base64
 import requests
+import time
 
 # 1. CONFIGURAÇÃO DA PÁGINA E TÍTULO
 st.set_page_config(page_title="IA Codex", page_icon="🤖")
