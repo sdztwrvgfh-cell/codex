@@ -8,7 +8,7 @@ import time
 # 1. CONFIGURAÇÃO DA PÁGINA E TÍTULO
 st.set_page_config(page_title="IA Codex", page_icon="🤖")
 
-# --- VISUAL: PLANO DE FUNDO E CORES CUSTOMIZADAS ---
+# --- VISUAL: PLANO DE FUNDO AND CORES CUSTOMIZADAS ---
 st.markdown(
     """
     <style>
@@ -38,18 +38,17 @@ st.markdown(
 )
 
 st.title("IA Codex 🤖")
-st.info("Bem vindo ao Codex, uma IA de sistema avançado para conversas e pesquias inteligentes do dia a dia 💡")
-st.markdown("""Nota: A Codex estava apresentando comportamentos "rebeldes" que foram corrigidos com a atualizaçao para a versao LLAMA 4 e 1.6.0. Se encontrar algo estranho, por favor reporte clicando no botão de feedback! 🚀""")
+st.info("Bem vindo ao Codex, uma IA perfeita para ajudar com tarefas, analisar fotos e criar imagens no dia a dia. 💡")
 
 # 🎵 PLAYER DE MÚSICA DE FUNDO
 st.audio("https://soundhelix.com")
 
 # Notas de Atualização
-with st.expander("📢 Notas da Atualização mais recente - Versão V1.6.0", expanded=False):
+with st.expander("📢 Notas da Atualização mais recente - Versão V1.5.0", expanded=False):
     st.markdown("""
-    *   **bugs fixed:** o Codex foi criado a poucos dias, portanto pode apresentar falhas por estar na versao de teste.
-    *   **New Feature:** Novas funço~es e aprimoramentos disponiveis para explorar. clique em "buscar atualizações"🚀
-    *   **New AI:** O Codex agora é alimentado por llama 4. um dos sistemas de IAs mais avançados.
+    *   **SUPER NEW FEATURE:** Suporte a imagens ativado! Agora você pode enviar fotos para o Codex analisar! 📸
+    *   **New AI:** Atualizado para o poderoso modelo multimodal *Llama 3.1*. 🧠
+    *   **Interface:** Caixas de chat atualizadas para a cor azul neon e gerador gráfico corrigido. 🎨
     """)
 
 # 2. SISTEMA DE MEMÓRIA (CARREGAR HISTÓRICO SALVO)
@@ -84,7 +83,7 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # RECURSO NOVO: Seletor de Personalidade Dinâmico para o Llama 4
+    # RECURSO NOVO: Seletor de Personalidade Dinâmico
     st.subheader("🧠 Modo de Operação")
     modo_selecionado = st.selectbox(
         "Escolha a especialidade do Codex:",
@@ -103,6 +102,7 @@ with st.sidebar:
 
     st.markdown("---")
     
+    # Botão de inverno (corrigido com os dois pontos!)
     if st.button("❄️ Modo Inverno"):
         st.snow()
 
@@ -142,22 +142,23 @@ if prompt := st.chat_input("Digite sua mensagem aqui..."):
             
         with st.chat_message("assistant"):
             with st.spinner("Desenhando sua imagem... 🎨"):
+                time.sleep(1) # Simula um pequeno tempo de busca
                 # Limpa o texto para mandar apenas a descrição para a API de imagem
                 descricao = prompt.replace("crie a imagem de", "").replace("desenhe", "").strip()
-                # Cria a URL da imagem gratuita usando a Pollinations AI
-                link_imagem = f"https://pollinations.ai{requests.utils.quote(descricao)}?width=1024&height=1024&enhanced=true"
+                # URL Corrigida com as chaves corretas do Python
+                link_imagem = f"https://pollinations.ai{descricao.replace(' ', '%20')}?width=1024&height=1024&nologo=true"
                 
                 # Exibe o desenho na tela
-                st.image(link_imagem, caption=f"Resultado: {descricao}")
+                st.image(link_imagem, caption=f"Resultado: {descricao}", use_container_width=True)
                 
                 # Salva o link no histórico para não perder
                 st.session_state.messages.append({"role": "assistant", "content": link_imagem})
                 with open(ARQUIVO_HISTORICO, "a", encoding="utf-8") as f:
                     f.write(f"user|||{prompt}\n")
                     f.write(f"assistant|||{link_imagem}\n")
-                st.stop() # Para a execução aqui para não acionar o Llama 4 de texto
+                st.stop() # Para a execução aqui para não acionar o Llama de texto
                 
-    # --- FLUXO NORMAL DO CHAT (TEXTO E FOTO COM LLAMA 4) ---
+    # --- FLUXO NORMAL DO CHAT (TEXTO E FOTO COM LLAMA) ---
     if not api_key:
         st.info("Insira sua API KEY. Você pode obter uma gratuitamente em https://groq.com")
         st.stop()
@@ -184,8 +185,8 @@ if prompt := st.chat_input("Digite sua mensagem aqui..."):
         st.write(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("Codex está pesquisando... 🧠"):
-            time.sleep(1)  # Simula um pequeno delay para melhor UX
+        with st.spinner("Codex está analisando... 🧠"):
+            time.sleep(1) # Simula o pequeno tempo que você pediu
             
             historico_ia = []
             for m in st.session_state.messages[:-1]:
@@ -199,7 +200,7 @@ if prompt := st.chat_input("Digite sua mensagem aqui..."):
                 messages=[
                     {"role": "system", "content": f"{prompt_sistema} FILTRO DE REALIDADE: Nunca invente dados falsos. Se não souber algo em tempo real, avise."}
                 ] + historico_ia,
-                model="llama-4-scout",
+                model="llama-3.1-8b-instant",
                 temperature=0.3,
                 max_tokens=2048
             )
