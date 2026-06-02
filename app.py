@@ -92,29 +92,30 @@ foto_enviada = st.file_uploader("Arraste ou envie uma foto para o Codex analisar
 if prompt := st.chat_input("Digite aqui... Ex: 'Crie a imagem de um dragão' ou tire dúvidas"):
     texto_usuario = prompt.lower().strip()
     
-    # 🎨 RECURSO: GERADOR GRÁFICO VIA TRUQUE DE BASE64 (BURLA QUALQUER BLOQUEIO)
+    # 🎨 RECURSO: GERADOR GRÁFICO VIA HUGGING FACE (ESTÁVEL E SEGURO)
     if texto_usuario.startswith("crie a imagem de") or texto_usuario.startswith("desenhe"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.write(prompt)
             
         with st.chat_message("assistant"):
-            with st.spinner("Codex está processando os pixels da imagem... 🎨"):
+            with st.spinner("Conectando ao motor gráfico do Hugging Face... 🎨"):
                 time.sleep(1)
                 prompt_limpo = texto_usuario.replace("crie a imagem de", "").replace("desenhe", "").strip()
                 prompt_url = requests.utils.quote(prompt_limpo)
                 
-                link_imagem = f"https://pollinations.ai{prompt_url}?width=1024&height=1024&nologo=true"
+                # NOVO LINK CORRIGIDO: Usando o servidor estável do Stable Diffusion via Hugging Face
+                link_imagem = f"https://huggingface.co{prompt_url}"
                 
                 try:
-                    # O Python baixa a imagem da web como dados brutos
-                    resposta_web = requests.get(link_imagem, timeout=20)
+                    # O Python baixa os dados da imagem do Hugging Face
+                    resposta_web = requests.get(link_imagem, timeout=25)
                     if resposta_web.status_code == 200:
-                        # Transforma os dados brutos da foto em um texto Base64 seguro
+                        # Transforma em texto Base64 para não dar bloqueio no Streamlit
                         dados_base64 = base64.b64encode(resposta_web.content).decode("utf-8")
                         link_seguro_base64 = f"data:image/jpeg;base64,{dados_base64}"
                         
-                        # Desenha na tela usando o texto seguro que não pode ser bloqueado
+                        # Exibe na tela
                         st.image(link_seguro_base64, caption=f"Arte Gerada: {prompt_limpo}", use_container_width=True)
                         
                         st.session_state.messages.append({"role": "assistant", "content": link_seguro_base64})
@@ -122,9 +123,9 @@ if prompt := st.chat_input("Digite aqui... Ex: 'Crie a imagem de um dragão' ou 
                             f.write(f"user|||{prompt}\n")
                             f.write(f"assistant|||{link_seguro_base64}\n")
                     else:
-                        st.error("O gerador externo falhou. Tente uma frase diferente.")
+                        st.error("O servidor do Hugging Face está processando muitas requisições. Tente novamente em alguns segundos.")
                 except:
-                    st.error("Erro ao baixar imagem do servidor externo. Tente novamente.")
+                    st.error("Erro ao conectar com o motor gráfico do Hugging Face. Verifique sua conexão.")
                 st.stop()
 
     # 💬 CHAT E ANÁLISE DE FOTO COM A GROQ (LLAMA ESTÁVEL)
