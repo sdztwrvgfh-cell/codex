@@ -192,7 +192,7 @@ if prompt := st.chat_input("Digite sua mensagem aqui..."):
         st.write(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("Codex está analisando... 🧠"):
+        with st.spinner("Codex está pesquisando... 🧠"):
             time.sleep(1)
             
             historico_ia = []
@@ -210,7 +210,7 @@ if prompt := st.chat_input("Digite sua mensagem aqui..."):
                 temperature=0.3,
                 max_tokens=2048
             )
-            resposta = chat_completion.choices.message.content
+            resposta = chat_completion.choices[0].message.content
             st.write(resposta)
         
     st.session_state.messages.append({"role": "assistant", "content": resposta})
