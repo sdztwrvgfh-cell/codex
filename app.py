@@ -79,12 +79,12 @@ with st.sidebar:
 # Reconstrói mensagens antigas de forma segura
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        if message["content"].startswith("data:image") or message["content"].startswith("http"):
+        if message["content"].startswith("data:image"):
             st.image(message["content"], use_container_width=True)
         else:
             st.write(message["content"])
 
-# --- ÁREA SIMPLIFICADA DE UPLOAD DE FOTOS ---
+# --- ÁREA DE UPLOAD DE FOTOS ---
 st.markdown("### 📸 Análise Multimodal")
 foto_enviada = st.file_uploader("Arraste ou envie uma foto para o Codex analisar junto com seu texto:", type=["jpg", "jpeg", "png"])
 
@@ -92,33 +92,39 @@ foto_enviada = st.file_uploader("Arraste ou envie uma foto para o Codex analisar
 if prompt := st.chat_input("Digite aqui... Ex: 'Crie a imagem de um dragão' ou tire dúvidas"):
     texto_usuario = prompt.lower().strip()
     
-    # 🎨 RECURSO NOVA IA: GERADOR GRÁFICO VIA HUGGING FACE ESTÁVEL
+    # 🎨 RECURSO: GERADOR GRÁFICO VIA TRUQUE DE BASE64 (BURLA QUALQUER BLOQUEIO)
     if texto_usuario.startswith("crie a imagem de") or texto_usuario.startswith("desenhe"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.write(prompt)
             
         with st.chat_message("assistant"):
-            with st.spinner("Conectando ao motor gráfico alternativo... 🎨"):
-                # Limpa a frase de comando para mandar apenas o assunto essencial
+            with st.spinner("Codex está processando os pixels da imagem... 🎨"):
+                time.sleep(1)
                 prompt_limpo = texto_usuario.replace("crie a imagem de", "").replace("desenhe", "").strip()
                 prompt_url = requests.utils.quote(prompt_limpo)
                 
-                # Usando um repositório espelho público e robusto do Hugging Face (estável e rápido)
-                link_imagem = f"https://huggingface.co"
-                
-                # Fallback URL estática livre de travamentos usando indexadores seguros
-                link_fallback = f"https://pollinations.ai{prompt_url}?width=1024&height=1024&nologo=true"
+                link_imagem = f"https://pollinations.ai{prompt_url}?width=1024&height=1024&nologo=true"
                 
                 try:
-                    # Tenta renderizar o link direto de forma assíncrona segura no container
-                    st.image(link_fallback, caption=f"Arte Gerada: {prompt_limpo}", use_container_width=True)
-                    st.session_state.messages.append({"role": "assistant", "content": link_fallback})
-                    with open(ARQUIVO_HISTORICO, "a", encoding="utf-8") as f:
-                        f.write(f"user|||{prompt}\n")
-                        f.write(f"assistant|||{link_fallback}\n")
+                    # O Python baixa a imagem da web como dados brutos
+                    resposta_web = requests.get(link_imagem, timeout=20)
+                    if resposta_web.status_code == 200:
+                        # Transforma os dados brutos da foto em um texto Base64 seguro
+                        dados_base64 = base64.b64encode(resposta_web.content).decode("utf-8")
+                        link_seguro_base64 = f"data:image/jpeg;base64,{dados_base64}"
+                        
+                        # Desenha na tela usando o texto seguro que não pode ser bloqueado
+                        st.image(link_seguro_base64, caption=f"Arte Gerada: {prompt_limpo}", use_container_width=True)
+                        
+                        st.session_state.messages.append({"role": "assistant", "content": link_seguro_base64})
+                        with open(ARQUIVO_HISTORICO, "a", encoding="utf-8") as f:
+                            f.write(f"user|||{prompt}\n")
+                            f.write(f"assistant|||{link_seguro_base64}\n")
+                    else:
+                        st.error("O gerador externo falhou. Tente uma frase diferente.")
                 except:
-                    st.error("Servidor congestionado. Aguarde alguns segundos antes de reenviar.")
+                    st.error("Erro ao baixar imagem do servidor externo. Tente novamente.")
                 st.stop()
 
     # 💬 CHAT E ANÁLISE DE FOTO COM A GROQ (LLAMA ESTÁVEL)
@@ -128,7 +134,6 @@ if prompt := st.chat_input("Digite aqui... Ex: 'Crie a imagem de um dragão' ou 
         
     client = Groq(api_key=api_key)
     
-    # Processa o upload da imagem se o usuário adicionou uma
     conteudo_mensagem = [{"type": "text", "text": prompt}]
     texto_salvar = prompt
 
@@ -141,12 +146,10 @@ if prompt := st.chat_input("Digite aqui... Ex: 'Crie a imagem de um dragão' ou 
         })
         texto_salvar = f"data:image/jpeg;base64,{imagem_base64}"
         
-        # Salva o log de envio da imagem na memória
         st.session_state.messages.append({"role": "user", "content": texto_salvar})
         with open(ARQUIVO_HISTORICO, "a", encoding="utf-8") as f:
             f.write(f"user|||{texto_salvar}\n")
 
-    # Fluxo normal de exibição do texto digitado
     if not foto_enviada:
         st.session_state.messages.append({"role": "user", "content": prompt})
         with open(ARQUIVO_HISTORICO, "a", encoding="utf-8") as f:
@@ -161,8 +164,7 @@ if prompt := st.chat_input("Digite aqui... Ex: 'Crie a imagem de um dragão' ou 
         with st.spinner("Codex processando... 🧠"):
             historico_ia = []
             for m in st.session_state.messages[:-1]:
-                # Limpa links e binários pesados para não quebrar a chamada de texto da API
-                if not m["content"].startswith("data:image") and not ("pollinations.ai" in m["content"]):
+                if not m["content"].startswith("data:image"):
                     historico_ia.append({"role": m["role"], "content": m["content"]})
             
             historico_ia.append({"role": "user", "content": conteudo_mensagem})
