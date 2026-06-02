@@ -3,7 +3,6 @@ from groq import Groq
 import os
 import base64
 import requests
-import time
 
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(page_title="IA Codex", page_icon="🤖")
@@ -65,13 +64,13 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-# Reconstrói mensagens antigas na tela
+# Reconstrói mensagens antigas de forma segura na tela
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         if message["content"].startswith("http"):
             st.image(message["content"], use_container_width=True)
-        elif message["content"].startswith("data:image") or len(message["content"]) > 1000:
-            st.warning("🖼️ [Imagem Enviada para Análise]")
+        elif message["content"].startswith("data:image") or len(message["content"]) > 2000:
+            st.warning("🖼️ [Imagem de Análise Multimodal]")
         else:
             st.write(message["content"])
 
@@ -83,7 +82,7 @@ foto_enviada = st.file_uploader("Arraste ou envie uma foto para o Codex analisar
 if prompt := st.chat_input("Digite aqui... Ex: 'Crie a imagem de um dragão' ou tire dúvidas"):
     texto_usuario = prompt.lower().strip()
     
-    # 🎨 GERADOR GRÁFICO (ROTA CORRIGIDA DA POLLINATIONS.AI)
+    # 🎨 GERADOR GRÁFICO (ROTA CORRIGIDA E ESTÁVEL DA POLLINATIONS)
     if texto_usuario.startswith("crie a imagem de") or texto_usuario.startswith("desenhe"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
@@ -92,13 +91,13 @@ if prompt := st.chat_input("Digite aqui... Ex: 'Crie a imagem de um dragão' ou 
         with st.chat_message("assistant"):
             with st.spinner("O Codex está desenhando sua arte... 🎨"):
                 prompt_limpo = texto_usuario.replace("crie a imagem de", "").replace("desenhe", "").strip()
-                # Codifica o texto para formato de URL seguro
+                # Codifica espaços e caracteres especiais com segurança para URL
                 prompt_url = requests.utils.quote(prompt_limpo)
                 
-                # CORREÇÃO DA URL: Adicionado o endpoint '/p/' necessário para renderizar a imagem
+                # Rota pública oficial que renderiza imagens direto na web
                 link_imagem = f"https://pollinations.ai{prompt_url}?width=1024&height=1024&nologo=true"
                 
-                # Mostra a imagem na tela
+                # Exibe o resultado na tela do Streamlit
                 st.image(link_imagem, caption=f"Arte Gerada: {prompt_limpo}", use_container_width=True)
                 
                 st.session_state.messages.append({"role": "assistant", "content": link_imagem})
@@ -107,7 +106,7 @@ if prompt := st.chat_input("Digite aqui... Ex: 'Crie a imagem de um dragão' ou 
                     f.write(f"assistant|||{link_imagem}\n")
                 st.stop()
 
-    # 💬 CHAT E ANÁLISE DE FOTO COM A GROQ (LLAMA 3.2 VISION)
+    # 💬 CHAT E ANÁLISE DE FOTO COM A GROQ (LLAMA 3.3 / LLAMA 3.2 VISION)
     if not api_key:
         st.info("Por favor, adicione sua Groq API Key na barra lateral.")
         st.stop()
@@ -115,7 +114,7 @@ if prompt := st.chat_input("Digite aqui... Ex: 'Crie a imagem de um dragão' ou 
     client = Groq(api_key=api_key)
     conteudo_mensagem = [{"type": "text", "text": prompt}]
 
-    # Renderiza o input do usuário na tela antes do processamento
+    # Renderiza a mensagem enviada pelo usuário no momento atual
     with st.chat_message("user"):
         st.write(prompt)
         if foto_enviada:
@@ -127,33 +126,40 @@ if prompt := st.chat_input("Digite aqui... Ex: 'Crie a imagem de um dragão' ou 
                 "image_url": {"url": f"data:image/jpeg;base64,{imagem_base64}"}
             })
 
-    # Adiciona a pergunta ao histórico de sessão do Streamlit
+    # Salva a entrada do usuário no histórico da sessão
     st.session_state.messages.append({"role": "user", "content": prompt})
     with open(ARQUIVO_HISTORICO, "a", encoding="utf-8") as f:
         f.write(f"user|||{prompt}\n")
 
+    # Gera a resposta do assistente
     with st.chat_message("assistant"):
         with st.spinner("Codex processando... 🧠"):
             historico_ia = []
-            # Monta o histórico de chat textual clássico para a IA
+            # Filtra links de imagem do histórico para não quebrar o prompt de chat da Groq
             for m in st.session_state.messages[:-1]:
                 if not m["content"].startswith("http") and not m["content"].startswith("data:image"):
                     historico_ia.append({"role": m["role"], "content": m["content"]})
             
             historico_ia.append({"role": "user", "content": conteudo_mensagem})
 
-            # CORREÇÃO DO MODELO: Alterado para 'llama-3.2-11b-vision-preview' para aceitar imagens de verdade
-            modelo_usado = "llama-3.2-11b-vision-preview" if foto_enviada else "llama-3.1-8b-instant"
+            # Seleciona o modelo correto dependendo se há imagem ou apenas texto
+            modelo_usado = "llama-3.2-11b-vision-preview" if foto_enviada else "llama-3.3-70b-versatile"
 
-            chat_completion = client.chat.completions.create(
-                messages=[{"role": "system", "content": "Você é o Codex. Responda de forma prestativa, simpática e use gírias leves."}] + historico_ia,
-                model=modelo_usado,
-                temperature=0.3,
-                max_tokens=2048
-            )
-            resposta = chat_completion.choices[0].message.content
-            st.write(resposta)
+            try:
+                chat_completion = client.chat.completions.create(
+                    messages=[{"role": "system", "content": "Você é o Codex. Responda de forma prestativa, simpática e use gírias leves."}] + historico_ia,
+                    model=modelo_usado,
+                    temperature=0.3,
+                    max_tokens=2048
+                )
+                # PEGA O TEXTO CORRETAMENTE COM O ÍNDICE [0]
+                resposta = chat_completion.choices[0].message.content
+                st.write(resposta)
+            except Exception as erro:
+                resposta = f"Desculpe, deu um erro ao chamar a Groq: {erro}"
+                st.error(resposta)
         
-    st.session_state.messages.append({"role": "assistant", "content": resposta})
-    with open(ARQUIVO_HISTORICO, "a", encoding="utf-8") as f:
-        f.write(f"assistant|||{resposta}\n")
+        # AGORA SIM! Linhas perfeitamente alinhadas dentro do bloco do 'if prompt'
+        st.session_state.messages.append({"role": "assistant", "content": resposta})
+        with open(ARQUIVO_HISTORICO, "a", encoding="utf-8") as f:
+            f.write(f"assistant|||{resposta}\n")
