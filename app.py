@@ -82,16 +82,17 @@ foto_enviada = st.file_uploader("Arraste ou envie uma foto para o Codex analisar
 if prompt := st.chat_input("Digite aqui... Ex: 'Crie a imagem de um dragão' ou tire dúvidas"):
     texto_usuario = prompt.lower().strip()
     
-    # 🎨 GERADOR GRÁFICO (ROTA CORRIGIDA E ESTÁVEL DA POLLINATIONS)
-    if texto_usuario.startswith("crie a imagem de") or texto_usuario.startswith("desenhe"):
+    # 🎨 GERADOR GRÁFICO (CORRIGIDO PARA ACEITAR MAIÚSCULAS/MINÚSCULAS)
+    if texto_usuario.startswith("crie a imagem de") or texto_usuario.startswith("desenhe") or texto_usuario.startswith("crie a imagem"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.write(prompt)
             
         with st.chat_message("assistant"):
             with st.spinner("O Codex está desenhando sua arte... 🎨"):
-                prompt_limpo = texto_usuario.replace("crie a imagem de", "").replace("desenhe", "").strip()
-                # Codifica espaços e caracteres especiais com segurança para URL
+                # Limpa os comandos para deixar só a descrição do desenho
+                prompt_limpo = texto_usuario.replace("crie a imagem de", "").replace("desenhe", "").replace("crie a imagem", "").strip()
+                # Codifica espaços e acentos com segurança para URL
                 prompt_url = requests.utils.quote(prompt_limpo)
                 
                 # Rota pública oficial que renderiza imagens direto na web
@@ -106,7 +107,7 @@ if prompt := st.chat_input("Digite aqui... Ex: 'Crie a imagem de um dragão' ou 
                     f.write(f"assistant|||{link_imagem}\n")
                 st.stop()
 
-    # 💬 CHAT E ANÁLISE DE FOTO COM A GROQ (LLAMA 3.3 / LLAMA 3.2 VISION)
+    # 💬 CHAT E ANÁLISE DE FOTO COM A GROQ (TEXTO PURO OU VISÃO)
     if not api_key:
         st.info("Por favor, adicione sua Groq API Key na barra lateral.")
         st.stop()
@@ -152,14 +153,13 @@ if prompt := st.chat_input("Digite aqui... Ex: 'Crie a imagem de um dragão' ou 
                     temperature=0.3,
                     max_tokens=2048
                 )
-                # PEGA O TEXTO CORRETAMENTE COM O ÍNDICE [0]
+                # CAPTURA O TEXTO USANDO O ÍNDICE CORRETO DA LISTA
                 resposta = chat_completion.choices[0].message.content
                 st.write(resposta)
             except Exception as erro:
                 resposta = f"Desculpe, deu um erro ao chamar a Groq: {erro}"
                 st.error(resposta)
         
-        # AGORA SIM! Linhas perfeitamente alinhadas dentro do bloco do 'if prompt'
         st.session_state.messages.append({"role": "assistant", "content": resposta})
         with open(ARQUIVO_HISTORICO, "a", encoding="utf-8") as f:
             f.write(f"assistant|||{resposta}\n")
