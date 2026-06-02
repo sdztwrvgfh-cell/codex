@@ -79,7 +79,9 @@ with st.sidebar:
 # Reconstrói mensagens antigas de forma segura
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        if message["content"].startswith("data:image"):
+        if message["content"].startswith("http"):
+            st.image(message["content"], use_container_width=True)
+        elif message["content"].startswith("data:image"):
             st.image(message["content"], use_container_width=True)
         else:
             st.write(message["content"])
@@ -92,40 +94,29 @@ foto_enviada = st.file_uploader("Arraste ou envie uma foto para o Codex analisar
 if prompt := st.chat_input("Digite aqui... Ex: 'Crie a imagem de um dragão' ou tire dúvidas"):
     texto_usuario = prompt.lower().strip()
     
-    # 🎨 RECURSO: GERADOR GRÁFICO VIA HUGGING FACE (ESTÁVEL E SEGURO)
+    # 🎨 GERADOR GRÁFICO (ROTA DIRETA E ESTÁVEL)
     if texto_usuario.startswith("crie a imagem de") or texto_usuario.startswith("desenhe"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.write(prompt)
             
         with st.chat_message("assistant"):
-            with st.spinner("Conectando ao motor gráfico do Hugging Face... 🎨"):
+            with st.spinner("O Codex está desenhando sua arte... 🎨"):
                 time.sleep(1)
                 prompt_limpo = texto_usuario.replace("crie a imagem de", "").replace("desenhe", "").strip()
-                prompt_url = requests.utils.quote(prompt_limpo)
+                # Cria a URL limpa com formatação segura para a web
+                prompt_url = prompt_limpo.replace(" ", "%20")
                 
-                # NOVO LINK CORRIGIDO: Usando o servidor estável do Stable Diffusion via Hugging Face
-                link_imagem = f"https://huggingface.co{prompt_url}"
+                # Rota pública padrão da Pollinations que funciona direto no navegador
+                link_imagem = f"https://pollinations.ai{prompt_url}?width=1024&height=1024&nologo=true"
                 
-                try:
-                    # O Python baixa os dados da imagem do Hugging Face
-                    resposta_web = requests.get(link_imagem, timeout=25)
-                    if resposta_web.status_code == 200:
-                        # Transforma em texto Base64 para não dar bloqueio no Streamlit
-                        dados_base64 = base64.b64encode(resposta_web.content).decode("utf-8")
-                        link_seguro_base64 = f"data:image/jpeg;base64,{dados_base64}"
-                        
-                        # Exibe na tela
-                        st.image(link_seguro_base64, caption=f"Arte Gerada: {prompt_limpo}", use_container_width=True)
-                        
-                        st.session_state.messages.append({"role": "assistant", "content": link_seguro_base64})
-                        with open(ARQUIVO_HISTORICO, "a", encoding="utf-8") as f:
-                            f.write(f"user|||{prompt}\n")
-                            f.write(f"assistant|||{link_seguro_base64}\n")
-                    else:
-                        st.error("O servidor do Hugging Face está processando muitas requisições. Tente novamente em alguns segundos.")
-                except:
-                    st.error("Erro ao conectar com o motor gráfico do Hugging Face. Verifique sua conexão.")
+                # Exibe a imagem de forma direta sem travar a rede do servidor
+                st.image(link_imagem, caption=f"Arte Gerada: {prompt_limpo}", use_container_width=True)
+                
+                st.session_state.messages.append({"role": "assistant", "content": link_imagem})
+                with open(ARQUIVO_HISTORICO, "a", encoding="utf-8") as f:
+                    f.write(f"user|||{prompt}\n")
+                    f.write(f"assistant|||{link_imagem}\n")
                 st.stop()
 
     # 💬 CHAT E ANÁLISE DE FOTO COM A GROQ (LLAMA ESTÁVEL)
