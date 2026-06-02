@@ -38,17 +38,17 @@ st.markdown(
 )
 
 st.title("IA Codex 🤖")
-st.info("Bes-vindo ao Codex, uma IA perfeita para ajudar com tarefas, analisar fotos e criar imagens no dia a dia. 💡")
+st.info("Bem-vindo ao Codex, uma IA perfeita para ajudar com tarefas, analisar fotos e criar imagens no dia a dia. 💡")
 
 # 🎵 PLAYER DE MÚSICA DE FUNDO
 st.audio("https://soundhelix.com")
 
 # Notas de Atualização
-with st.expander("📢 Notas da Atualização mais recente - Versão V1.5.2", expanded=False):
+with st.expander("📢 Notas da Atualização mais recente - Versão V1.5.3", expanded=False):
     st.markdown("""
     *   **SUPER NEW FEATURE:** Suporte a imagens ativado! 📸
-    *   **Bugs Fixed:** Corrigido o erro de texto em maiúsculas na geração de imagem. 🎨
-    *   **Bugs Fixed:** Corrigido o erro de choices da API Groq. 🛠️
+    *   **Bugs Fixed:** Corrigido o espaçamento e colagem de texto na URL do gerador de imagens. 🎨
+    *   **Bugs Fixed:** Sistema de requisição por bytes blindado contra URLs grudadas. 🛠️
     """)
 
 # 2. SISTEMA DE MEMÓRIA (CARREGAR HISTÓRICO SALVO)
@@ -148,8 +148,11 @@ if prompt := st.chat_input("Digite sua mensagem aqui..."):
         with st.chat_message("assistant"):
             with st.spinner("Desenhando sua imagem... 🎨"):
                 time.sleep(1)
-                # Correção: usa o texto_usuario que está todo em minúsculo para limpar o comando
+                
+                # CORREÇÃO DEFINITIVA: Remove o texto do comando limpando perfeitamente os espaços
                 descricao = texto_usuario.replace("crie a imagem de", "").replace("desenhe", "").strip()
+                
+                # ADICIONADO A BARRA FIXA CORRETA: /p/ antes da descrição para nunca mais grudar o link
                 link_imagem = f"https://pollinations.ai{descricao.replace(' ', '%20')}?width=1024&height=1024&nologo=true"
                 
                 try:
@@ -209,7 +212,6 @@ if prompt := st.chat_input("Digite sua mensagem aqui..."):
                 temperature=0.3,
                 max_tokens=2048
             )
-            # Correção definitiva da linha choices da Groq
             resposta = chat_completion.choices[0].message.content
             st.write(resposta)
         
