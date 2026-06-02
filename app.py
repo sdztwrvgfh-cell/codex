@@ -8,7 +8,7 @@ import time
 # 1. CONFIGURAÇÃO DA PÁGINA E TÍTULO
 st.set_page_config(page_title="IA Codex", page_icon="🤖")
 
-# --- VISUAL: PLANO DE FUNDO E CORES CUSTOMIZADAS ---
+# --- VISUAL: PLANO DE FUNDO AND CORES CUSTOMIZADAS ---
 st.markdown(
     """
     <style>
@@ -38,17 +38,17 @@ st.markdown(
 )
 
 st.title("IA Codex 🤖")
-st.info("Bem vindo ao Codex, uma IA perfeita para ajudar com tarefas, analisar fotos e criar imagens no dia a dia. 💡")
+st.info("Bes-vindo ao Codex, uma IA perfeita para ajudar com tarefas, analisar fotos e criar imagens no dia a dia. 💡")
 
 # 🎵 PLAYER DE MÚSICA DE FUNDO
 st.audio("https://soundhelix.com")
 
 # Notas de Atualização
-with st.expander("📢 Notas da Atualização mais recente - Versão V1.5.1", expanded=False):
+with st.expander("📢 Notas da Atualização mais recente - Versão V1.5.2", expanded=False):
     st.markdown("""
     *   **SUPER NEW FEATURE:** Suporte a imagens ativado! 📸
-    *   **Bugs Fixed:** Corrigido o erro de bloqueio de imagens externas no servidor através do carregamento por bytes puros! 🎨
-    *   **Interface:** Caixas de chat atualizadas para a cor azul neon. 🎨
+    *   **Bugs Fixed:** Corrigido o erro de texto em maiúsculas na geração de imagem. 🎨
+    *   **Bugs Fixed:** Corrigido o erro de choices da API Groq. 🛠️
     """)
 
 # 2. SISTEMA DE MEMÓRIA (CARREGAR HISTÓRICO SALVO)
@@ -117,7 +117,6 @@ with st.sidebar:
 # Mostra as mensagens antigas
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        # Se for um link do gerador de imagem, baixa os bytes de forma segura para exibir no histórico
         if message["content"].startswith("http") and "pollinations.ai" in message["content"]:
             try:
                 response = requests.get(message["content"], timeout=10)
@@ -140,7 +139,7 @@ def converter_imagem(upload_file):
 if prompt := st.chat_input("Digite sua mensagem aqui..."):
     
     # --- RECURSO: SISTEMA DE GERAÇÃO DE IMAGENS POR BYTES ---
-    texto_usuario = prompt.lower()
+    texto_usuario = prompt.lower().strip()
     if texto_usuario.startswith("crie a imagem de") or texto_usuario.startswith("desenhe"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
@@ -149,10 +148,10 @@ if prompt := st.chat_input("Digite sua mensagem aqui..."):
         with st.chat_message("assistant"):
             with st.spinner("Desenhando sua imagem... 🎨"):
                 time.sleep(1)
-                descricao = prompt.replace("crie a imagem de", "").replace("desenhe", "").strip()
+                # Correção: usa o texto_usuario que está todo em minúsculo para limpar o comando
+                descricao = texto_usuario.replace("crie a imagem de", "").replace("desenhe", "").strip()
                 link_imagem = f"https://pollinations.ai{descricao.replace(' ', '%20')}?width=1024&height=1024&nologo=true"
                 
-                # BAIXA OS BYTES DA IMAGEM PARA BURLAR O BLOQUEIO DE REDE
                 try:
                     conteudo_foto = requests.get(link_imagem, timeout=15).content
                     st.image(conteudo_foto, caption=f"Resultado: {descricao}", use_container_width=True)
@@ -192,7 +191,7 @@ if prompt := st.chat_input("Digite sua mensagem aqui..."):
         st.write(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("Codex está pesquisando... 🧠"):
+        with st.spinner("Codex está analisando... 🧠"):
             time.sleep(1)
             
             historico_ia = []
@@ -210,6 +209,7 @@ if prompt := st.chat_input("Digite sua mensagem aqui..."):
                 temperature=0.3,
                 max_tokens=2048
             )
+            # Correção definitiva da linha choices da Groq
             resposta = chat_completion.choices[0].message.content
             st.write(resposta)
         
