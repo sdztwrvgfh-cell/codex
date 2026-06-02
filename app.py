@@ -8,7 +8,7 @@ import time
 # 1. CONFIGURAÇÃO DA PÁGINA E TÍTULO
 st.set_page_config(page_title="IA Codex", page_icon="🤖")
 
-# --- VISUAL: PLANO DE FUNDO AND CORES CUSTOMIZADAS ---
+# --- VISUAL: PLANO DE FUNDO E CORES CUSTOMIZADAS ---
 st.markdown(
     """
     <style>
@@ -44,11 +44,11 @@ st.info("Bem vindo ao Codex, uma IA perfeita para ajudar com tarefas, analisar f
 st.audio("https://soundhelix.com")
 
 # Notas de Atualização
-with st.expander("📢 Notas da Atualização mais recente - Versão V1.5.0", expanded=False):
+with st.expander("📢 Notas da Atualização mais recente - Versão V1.5.1", expanded=False):
     st.markdown("""
-    *   **SUPER NEW FEATURE:** Suporte a imagens ativado! Agora você pode enviar fotos para o Codex analisar! 📸
-    *   **New AI:** Atualizado para o poderoso modelo multimodal *Llama 3.1*. 🧠
-    *   **Interface:** Caixas de chat atualizadas para a cor azul neon e gerador gráfico corrigido. 🎨
+    *   **SUPER NEW FEATURE:** Suporte a imagens ativado! 📸
+    *   **Bugs Fixed:** Corrigido o erro de bloqueio de imagens externas no servidor através do carregamento por bytes puros! 🎨
+    *   **Interface:** Caixas de chat atualizadas para a cor azul neon. 🎨
     """)
 
 # 2. SISTEMA DE MEMÓRIA (CARREGAR HISTÓRICO SALVO)
@@ -83,7 +83,7 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # RECURSO NOVO: Seletor de Personalidade Dinâmico
+    # Seletor de Personalidade Dinâmico
     st.subheader("🧠 Modo de Operação")
     modo_selecionado = st.selectbox(
         "Escolha a especialidade do Codex:",
@@ -102,7 +102,6 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # Botão de inverno (corrigido com os dois pontos!)
     if st.button("❄️ Modo Inverno"):
         st.snow()
 
@@ -118,9 +117,16 @@ with st.sidebar:
 # Mostra as mensagens antigas
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        # Se a mensagem for um link de imagem gerada, exibe como imagem
+        # Se for um link do gerador de imagem, baixa os bytes de forma segura para exibir no histórico
         if message["content"].startswith("http") and "pollinations.ai" in message["content"]:
-            st.image(message["content"], caption="Imagem gerada pelo Codex")
+            try:
+                response = requests.get(message["content"], timeout=10)
+                if response.status_code == 200:
+                    st.image(response.content, caption="Imagem gerada pelo Codex", use_container_width=True)
+                else:
+                    st.write("⚠️ Erro ao recarregar a imagem do servidor.")
+            except:
+                st.write("⚠️ Erro de conexão ao buscar a imagem antiga.")
         else:
             st.write(message["content"])
 
@@ -133,7 +139,7 @@ def converter_imagem(upload_file):
 # 3. CAMPO DE ENVIO DE TEXTO (CHAT)
 if prompt := st.chat_input("Digite sua mensagem aqui..."):
     
-    # --- RECURSO NOVO: SISTEMA DE GERAÇÃO DE IMAGENS ---
+    # --- RECURSO: SISTEMA DE GERAÇÃO DE IMAGENS POR BYTES ---
     texto_usuario = prompt.lower()
     if texto_usuario.startswith("crie a imagem de") or texto_usuario.startswith("desenhe"):
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -142,21 +148,22 @@ if prompt := st.chat_input("Digite sua mensagem aqui..."):
             
         with st.chat_message("assistant"):
             with st.spinner("Desenhando sua imagem... 🎨"):
-                time.sleep(1) # Simula um pequeno tempo de busca
-                # Limpa o texto para mandar apenas a descrição para a API de imagem
+                time.sleep(1)
                 descricao = prompt.replace("crie a imagem de", "").replace("desenhe", "").strip()
-                # URL Corrigida com as chaves corretas do Python
                 link_imagem = f"https://pollinations.ai{descricao.replace(' ', '%20')}?width=1024&height=1024&nologo=true"
                 
-                # Exibe o desenho na tela
-                st.image(link_imagem, caption=f"Resultado: {descricao}", use_container_width=True)
-                
-                # Salva o link no histórico para não perder
-                st.session_state.messages.append({"role": "assistant", "content": link_imagem})
-                with open(ARQUIVO_HISTORICO, "a", encoding="utf-8") as f:
-                    f.write(f"user|||{prompt}\n")
-                    f.write(f"assistant|||{link_imagem}\n")
-                st.stop() # Para a execução aqui para não acionar o Llama de texto
+                # BAIXA OS BYTES DA IMAGEM PARA BURLAR O BLOQUEIO DE REDE
+                try:
+                    conteudo_foto = requests.get(link_imagem, timeout=15).content
+                    st.image(conteudo_foto, caption=f"Resultado: {descricao}", use_container_width=True)
+                    
+                    st.session_state.messages.append({"role": "assistant", "content": link_imagem})
+                    with open(ARQUIVO_HISTORICO, "a", encoding="utf-8") as f:
+                        f.write(f"user|||{prompt}\n")
+                        f.write(f"assistant|||{link_imagem}\n")
+                except Exception as e:
+                    st.error(f"Erro ao processar os dados da imagem: {e}")
+                st.stop()
                 
     # --- FLUXO NORMAL DO CHAT (TEXTO E FOTO COM LLAMA) ---
     if not api_key:
@@ -186,11 +193,10 @@ if prompt := st.chat_input("Digite sua mensagem aqui..."):
 
     with st.chat_message("assistant"):
         with st.spinner("Codex está analisando... 🧠"):
-            time.sleep(1) # Simula o pequeno tempo que você pediu
+            time.sleep(1)
             
             historico_ia = []
             for m in st.session_state.messages[:-1]:
-                # Ignora links de imagens antigas na memória de texto para não bugar a API
                 if not (m["content"].startswith("http") and "pollinations.ai" in m["content"]):
                     historico_ia.append({"role": m["role"], "content": m["content"]})
             
@@ -204,7 +210,7 @@ if prompt := st.chat_input("Digite sua mensagem aqui..."):
                 temperature=0.3,
                 max_tokens=2048
             )
-            resposta = chat_completion.choices[0].message.content
+            resposta = chat_completion.choices.message.content
             st.write(resposta)
         
     st.session_state.messages.append({"role": "assistant", "content": resposta})
